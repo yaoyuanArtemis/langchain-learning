@@ -35,15 +35,44 @@ from langchain.output_parsers import ResponseSchema,StructuredOutputParser
 # print(result)
 
 # complex chain
-news_gen_prompt = PromptTemplate.from_template("请根据以下新闻标题写一份简短的新闻内容(100字以内):标题:{title}")
-news_chain = news_gen_prompt | model
+# news_gen_prompt = PromptTemplate.from_template("请根据以下新闻标题写一份简短的新闻内容(100字以内):标题:{title}")
+# news_chain = news_gen_prompt | model
 
-schemas = [ResponseSchema(name="time",description="事件发生时间"),ResponseSchema(name="location",description="事件发生的地点"),ResponseSchema(name="event",description="发生的具体事件")]
-parser = StructuredOutputParser.from_response_schemas(schemas)
-summary_prompt = PromptTemplate.from_template("请从下面新闻内容中提取关键信息,并返回JSON格式:{news}{format_instructions}")
-summary_chain = summary_prompt.partial(format_instructions=parser.get_format_instructions()) | model | parser
-print(parser.get_format_instructions())
-full_chain = news_chain | summary_chain
+# schemas = [ResponseSchema(name="time",description="事件发生时间"),ResponseSchema(name="location",description="事件发生的地点"),ResponseSchema(name="event",description="发生的具体事件")]
+# parser = StructuredOutputParser.from_response_schemas(schemas)
+# summary_prompt = PromptTemplate.from_template("请从下面新闻内容中提取关键信息,并返回JSON格式:{news}{format_instructions}")
+# summary_chain = summary_prompt.partial(format_instructions=parser.get_format_instructions()) | model | parser
+# print(parser.get_format_instructions())
 
-result = full_chain.invoke({"title":"英伟达公司在加州发布了新的GPU"})
-print(result)
+# from langchain_core.runnables import RunnableLambda
+# def debug_print(x):
+#     print("中间节点",x)
+#     return x
+# debug_node = RunnableLambda(debug_print)
+# full_chain = news_chain | debug_node | summary_chain
+
+# result = full_chain.invoke({"title":"英伟达公司在加州发布了新的GPU"})
+# print(result)
+
+# list_memory chain
+from langchain_core.messages import AIMessage,HumanMessage,SystemMessage
+from langchain_core.prompts import ChatPromptTemplate,MessagesPlaceholder
+from langchain_core.output_parsers import StrOutputParser
+
+parser = StrOutputParser()
+prompt = ChatPromptTemplate.from_messages(
+    [SystemMessage(content="你叫小智,是一个AI助手"),MessagesPlaceholder(variable_name="messages")])
+chain = prompt | model | parser
+message_list = []
+print("输入 exit 或 quit 结束对话")
+
+while True:
+    user_query = input("你: ")
+    if user_query.lower() in {"exit","quit"}:
+        break
+    message_list.append(HumanMessage(content=user_query))
+    assistant_reply = chain.invoke({"messages":message_list})
+    print("🤖 小智：",assistant_reply)
+    message_list.append(AIMessage(content=assistant_reply))
+    if len(message_list) > 50:
+        message_list = message_list[-50]
